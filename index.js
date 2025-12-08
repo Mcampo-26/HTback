@@ -18,13 +18,14 @@ const server = http.createServer(app);
 const allowedOrigins = ['http://localhost:5173','https://webht-912ff4af7bbc.herokuapp.com'];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+  origin: function(origin, callback){
+    // Permite requests sin origin (ej: desde Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    console.log("CORS rechazado para:", origin);
     return callback(new Error('CORS bloqueado'));
   },
-  credentials: true,
+  credentials: true
 }));
 
 // ░░░ SOCKET.IO ░░░
