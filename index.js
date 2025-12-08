@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 
 // ░░░ CONFIGURACIÓN DE CORS ░░░
-const allowedOrigins = ['http://localhost:5173','https://webht-912ff4af7bbc.herokuapp.com'];
+const allowedOrigins = ['http://localhost:5173','https://hospitaldetrancas.netlify.app'];
 
 app.use(cors({
   origin: function(origin, callback){
