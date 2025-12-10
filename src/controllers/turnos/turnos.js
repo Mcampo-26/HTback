@@ -2,9 +2,9 @@ import { Turno } from "../../models/turno.js";
 
 const horariosPorEspecialidad = {
   "Traumatólogo":  ["08:00","08:30","09:00","09:30","10:00","10:30"],
-  "Odontólogo":    ["08:00","08:30","09:00","09:30","10:00"],
-  "Cardiólogo":    ["14:00","14:30","15:00","15:30"],
-  "Kinesiólogo":   ["16:00","16:30","17:00","17:30","18:00"],
+  "Odontólogo":    ["08:00","08:30","09:00","09:30","10:00","10:30"],
+  "Cardiólogo":   ["08:00","08:30","09:00","09:30","10:00","10:30"],
+  "Kinesiólogo":  ["08:00","08:30","09:00","09:30","10:00","10:30"],
 };
 
 // Crear turno
@@ -22,6 +22,30 @@ export const crearTurno = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
+export const horariosDisponibles = async (req, res) => {
+  try {
+    const { especialidad, fecha } = req.query;
+
+    if (!especialidad || !fecha)
+      return res.status(400).json({ error: "Faltan datos" });
+
+    const base = horariosPorEspecialidad[especialidad] || [];
+
+    const turnosTomados = await Turno.find({ especialidad, fecha });
+    const ocupados = turnosTomados.map(t => t.hora);
+
+    const horarios = base.map(h => ({
+      hora: h,
+      disponible: !ocupados.includes(h)
+    }));
+
+    res.json({ horarios });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "Error interno" });
+  }
+};
+
 
 // Obtener todos
 export const obtenerTurnos = async (req, res) => {
@@ -71,19 +95,7 @@ export const eliminarTurno = async (req, res) => {
 };
 
 // Horarios disponibles
-export const horariosDisponibles = async (req, res) => {
-  try {
-    const { especialidad, fecha } = req.query;
-    if (!especialidad || !fecha) return res.status(400).json({ error: "Faltan datos" });
-    const base = horariosPorEspecialidad[especialidad] || [];
-    const turnosTomados = await Turno.find({ especialidad, fecha });
-    const ocupados = turnosTomados.map(t => t.hora);
-    const disponibles = base.filter(h => !ocupados.includes(h));
-    res.json({ disponibles, ocupados });
-  } catch (err) {
-    res.status(500).json({ error: "Error interno" });
-  }
-};
+
 
 // Horarios ocupados
 export const horariosOcupados = async (req, res) => {
