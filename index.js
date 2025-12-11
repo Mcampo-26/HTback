@@ -5,6 +5,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import { turnosRouter } from "./src/routes/turnos/index.js";
+import {noticiasRouter} from './src/routes/noticias/index.js'
 
 import { dbConnect } from './src/database/config.js';
 
@@ -46,6 +47,8 @@ app.use(morgan('dev'));
 
 // ░░░ RUTAS ░░░
 app.use("/api/turnos", turnosRouter);
+app.use("/api/noticias", noticiasRouter);
+
 // ░░░ INICIAR SERVIDOR ░░░
 const PORT = process.env.PORT || 8080;
 

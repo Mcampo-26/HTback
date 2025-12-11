@@ -8,7 +8,7 @@ import {
   horariosDisponibles,
   horariosOcupados,
 
-} from "../../controllers/turnos/index.js";
+} from "../../controllers/turnosControllers/index.js";
 
 export const turnosRouter = Router();
 
