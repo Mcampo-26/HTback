@@ -11,17 +11,44 @@ const horariosPorEspecialidad = {
 export const crearTurno = async (req, res) => {
   try {
     const { dni, telefono, especialidad, fecha, hora } = req.body;
+
     if (!dni || !telefono || !especialidad || !fecha || !hora) {
       return res.status(400).json({ msg: "Faltan datos obligatorios" });
     }
+
+    // 🔒 Máximo 3 turnos POR DÍA por DNI
+    const turnosDelDia = await Turno.countDocuments({
+      dni,
+      fecha,
+      estado: { $ne: "cancelado" } // opcional si no usás estado
+    });
+
+    if (turnosDelDia >= 3) {
+      return res.status(400).json({
+        msg: "Alcanzaste el máximo de 3 turnos por día. Intentá mañana."
+      });
+    }
+
+    // 🔢 Número de turno
     const ultimo = await Turno.findOne().sort({ numeroTurno: -1 });
     const numeroTurno = ultimo ? ultimo.numeroTurno + 1 : 1;
-    const turno = await Turno.create({ dni, telefono, especialidad, fecha, hora, numeroTurno });
+
+    const turno = await Turno.create({
+      dni,
+      telefono,
+      especialidad,
+      fecha,
+      hora,
+      numeroTurno
+    });
+
     return res.status(201).json(turno);
+
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 };
+
 export const horariosDisponibles = async (req, res) => {
   try {
     const { especialidad, fecha } = req.query;
