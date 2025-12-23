@@ -3,32 +3,35 @@ import { Noticia } from "../../models/noticia.js";
 
 
 export const crearNoticia = async (req, res) => {
-    try {
-      const { titulo, descripcion, imagenUrl, posicion, activo } = req.body;
-  
-      if (!titulo || !descripcion || !posicion) {
-        return res
-          .status(400)
-          .json({ mensaje: "titulo, descripcion y posicion son obligatorios" });
-      }
-  
-      const noticia = new Noticia({
-        titulo,
-        descripcion,
-        imagenUrl: imagenUrl || null,
-        posicion,
-        activo: activo !== undefined ? activo : true,
+  try {
+    const { titulo, descripcion, imagenUrl, posicion, activo, link } = req.body;
+
+    if (!titulo || !descripcion || !posicion) {
+      return res.status(400).json({
+        mensaje: "titulo, descripcion y posicion son obligatorios",
       });
-  
-      const noticiaGuardada = await noticia.save();
-  
-      return res.status(201).json(noticiaGuardada);
-    } catch (error) {
-      return res
-        .status(500)
-        .json({ mensaje: "Error al crear noticia", error: error.message });
     }
-  };
+
+    const noticia = new Noticia({
+      titulo,
+      descripcion,
+      imagenUrl: imagenUrl || null,
+      posicion,
+      activo: activo !== undefined ? activo : true,
+      link: link || null,
+    });
+
+    const noticiaGuardada = await noticia.save();
+    
+    return res.status(201).json(noticiaGuardada);
+  } catch (error) {
+    return res.status(500).json({
+      mensaje: "Error al crear noticia",
+      error: error.message,
+    });
+  }
+};
+
 
 
   export const obtenerNoticias = async (req, res) => {
@@ -62,7 +65,7 @@ export const crearNoticia = async (req, res) => {
   export const actualizarNoticia = async (req, res) => {
     try {
       const { id } = req.params;
-      const { titulo, descripcion, imagenUrl, posicion, activo } = req.body;
+      const { titulo, descripcion, imagenUrl, posicion, activo, link } = req.body;
   
       const noticiaActualizada = await Noticia.findByIdAndUpdate(
         id,
@@ -72,6 +75,7 @@ export const crearNoticia = async (req, res) => {
           ...(imagenUrl !== undefined && { imagenUrl }),
           ...(posicion !== undefined && { posicion }),
           ...(activo !== undefined && { activo }),
+          ...(link !== undefined && { link }), // ✅ IMPORTANTE
         },
         { new: true }
       );
@@ -82,12 +86,12 @@ export const crearNoticia = async (req, res) => {
   
       return res.status(200).json(noticiaActualizada);
     } catch (error) {
-      return res
-        .status(500)
-        .json({ mensaje: "Error al actualizar noticia", error: error.message });
+      return res.status(500).json({
+        mensaje: "Error al actualizar noticia",
+        error: error.message,
+      });
     }
   };
-
 
   export const eliminarNoticia = async (req, res) => {
     try {

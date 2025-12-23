@@ -20,13 +20,19 @@ const NoticiaSchema = new mongoose.Schema(
     },
     posicion: {
       type: String,
-      enum: ["carrusel", "cards", "banner","participacion", "salud"],
+      enum: ["carrusel", "cards", "banner","participacion", "salud", "banner1", "banner2"],
       required: true,
     },
     activo: {
       type: Boolean,
       default: true,
     },
+
+    link: {
+      type: String,
+      default: null,
+    },
+    
   },
   { timestamps: true }
 );
