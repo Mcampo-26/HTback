@@ -39,13 +39,25 @@ const io = new Server(server, {
     credentials: true,
   },
 });
-
 app.locals.io = io;
 
 // ░░░ MIDDLEWARES BASE ░░░
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
+
+// 🔥 NUEVO: MIDDLEWARE DE CONEXIÓN A DB (Crucial para Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await dbConnect();
+    next();
+  } catch (error) {
+    res.status(500).json({ 
+      mensaje: "Error de conexión a la base de datos", 
+      error: error.message 
+    });
+  }
+});
 
 // ░░░ CONTENT SECURITY POLICY ░░░
 app.use((req, res, next) => {
@@ -70,12 +82,8 @@ app.use("/api/noticias", noticiasRouter);
 // ░░░ INICIAR SERVIDOR ░░░
 const PORT = process.env.PORT || 8080;
 
-server.listen(PORT, async () => {
+server.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-
-  // ✔️ SOLO en local mantenemos la conexión viva
-  if (process.env.NODE_ENV !== "production") {
-    await dbConnect();
-    console.log("📦 Mongo conectado (local)");
-  }
+  // En Vercel, el servidor se "duerme", por eso la conexión 
+  // ahora se maneja dentro del middleware de arriba.
 });
