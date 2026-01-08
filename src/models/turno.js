@@ -1,4 +1,3 @@
-// src/turnos/turnos.model.js
 import mongoose from "mongoose";
 
 const TurnoSchema = new mongoose.Schema(
@@ -28,10 +27,15 @@ const TurnoSchema = new mongoose.Schema(
       required: true,
     },
     qr: {
-      type: String, // acá después ponemos el base64
+      type: String,
       default: null,
     },
-
+    // ✅ NUEVO: Para no borrar el registro
+    estado: {
+      type: String,
+      enum: ["pendiente", "atendido", "cancelado"],
+      default: "pendiente",
+    },
   },
   { timestamps: true }
 );

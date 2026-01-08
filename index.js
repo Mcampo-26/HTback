@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 
 import { turnosRouter } from "./src/routes/turnos/index.js";
 import { noticiasRouter } from "./src/routes/noticias/index.js";
+import { atencionesRouter } from "./src/routes/atencion/index.js";
 import { dbConnect } from "./src/database/config.js";
 
 dotenv.config();
@@ -78,6 +79,7 @@ app.use((req, res, next) => {
 // ░░░ RUTAS ░░░
 app.use("/api/turnos", turnosRouter);
 app.use("/api/noticias", noticiasRouter);
+app.use("/api/atenciones", atencionesRouter);
 
 // ░░░ INICIAR SERVIDOR ░░░
 const PORT = process.env.PORT || 8080;
