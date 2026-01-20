@@ -18,6 +18,22 @@ export const crearEspecialista = async (req, res) => {
     res.status(400).json({ mensaje: "Error al crear", error: error.message });
   }
 };
+export const actualizarEspecialista = async (req, res) => {
+  try {
+    // Usamos req.body directamente para que tome todos los campos del modelo
+    const actualizado = await Especialista.findByIdAndUpdate(
+      req.params.id, 
+      { $set: req.body }, // Forzamos el set de los campos enviados
+      { new: true, runValidators: true } 
+    );
+    
+    if (!actualizado) return res.status(404).json({ mensaje: "No encontrado" });
+    
+    res.json(actualizado);
+  } catch (error) {
+    res.status(400).json({ mensaje: "Error al actualizar", error: error.message });
+  }
+};
 
 export const eliminarEspecialista = async (req, res) => {
   try {

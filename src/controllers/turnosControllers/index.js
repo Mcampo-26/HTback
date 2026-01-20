@@ -52,16 +52,19 @@ export const horariosDisponibles = async (req, res) => {
     if (!especialidad || !fecha)
       return res.status(400).json({ error: "Faltan datos" });
 
-    // 🔍 BUSCAMOS AL ESPECIALISTA EN LA DB (En lugar de usar el hardcodeo)
-    const profesional = await Especialista.findOne({ especialidad });
+    // 🔍 BUSQUEDA ROBUSTA:
+    // $regex: crea una expresión regular con el nombre
+    // $options: "i" hace que ignore mayúsculas y minúsculas
+    const profesional = await Especialista.findOne({ 
+      especialidad: { $regex: new RegExp(`^${especialidad.trim()}$`, "i") } 
+    });
 
     if (!profesional) {
       return res.status(404).json({ error: "No hay especialistas para esta área" });
     }
 
-    // Los horarios base ahora vienen de lo que cargaste en el CRUD
+    // El resto del código se mantiene igual...
     const base = profesional.horariosBase || [];
-
     const turnosTomados = await Turno.find({ especialidad, fecha });
     const ocupados = turnosTomados.map(t => t.hora);
 
@@ -72,7 +75,6 @@ export const horariosDisponibles = async (req, res) => {
 
     res.json({ horarios });
   } catch (err) {
-    console.log(err);
     res.status(500).json({ error: "Error interno" });
   }
 };
