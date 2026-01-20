@@ -1,14 +1,5 @@
 import { Turno } from "../../models/turno.js";
-
-const horariosPorEspecialidad = {
-  "Traumatólogo":  ["08:00","08:30","09:00","09:30","10:00","10:30"],
-  "Odontólogo":    ["08:00","08:30","09:00","09:30","10:00","10:30"],
-  "Cardiólogo":   ["08:00","08:30","09:00","09:30","10:00","10:30"],
-  "Kinesiólogo":  ["08:00","08:30","09:00","09:30","10:00","10:30"],
-  "Pediatra":  ["08:00","08:30","09:00","09:30","10:00","10:30"],
-  
-
-};
+import { Especialista } from "../../models/especialista.js";
 
 // Crear turno
 export const crearTurno = async (req, res) => {
@@ -52,6 +43,8 @@ export const crearTurno = async (req, res) => {
   }
 };
 
+
+
 export const horariosDisponibles = async (req, res) => {
   try {
     const { especialidad, fecha } = req.query;
@@ -59,7 +52,15 @@ export const horariosDisponibles = async (req, res) => {
     if (!especialidad || !fecha)
       return res.status(400).json({ error: "Faltan datos" });
 
-    const base = horariosPorEspecialidad[especialidad] || [];
+    // 🔍 BUSCAMOS AL ESPECIALISTA EN LA DB (En lugar de usar el hardcodeo)
+    const profesional = await Especialista.findOne({ especialidad });
+
+    if (!profesional) {
+      return res.status(404).json({ error: "No hay especialistas para esta área" });
+    }
+
+    // Los horarios base ahora vienen de lo que cargaste en el CRUD
+    const base = profesional.horariosBase || [];
 
     const turnosTomados = await Turno.find({ especialidad, fecha });
     const ocupados = turnosTomados.map(t => t.hora);
