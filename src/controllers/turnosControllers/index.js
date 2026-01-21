@@ -6,43 +6,46 @@ export const crearTurno = async (req, res) => {
   try {
     const { dni, telefono, especialidad, fecha, hora } = req.body;
 
-    if (!dni || !telefono || !especialidad || !fecha || !hora) {
-      return res.status(400).json({ msg: "Faltan datos obligatorios" });
-    }
+    // Normalizamos para evitar errores de espacios o tipos de datos
+    const dniBusqueda = String(dni).trim();
+    const fechaBusqueda = String(fecha).trim();
 
-    // 🔒 Máximo 3 turnos POR DÍA por DNI
-    const turnosDelDia = await Turno.countDocuments({
-      dni,
-      fecha,
-      estado: { $ne: "cancelado" } // opcional si no usás estado
+    // 🔒 LA CLAVE: Buscamos coincidencia exacta en la BD
+    const turnosExistentes = await Turno.find({
+      dni: dniBusqueda,
+      fecha: fechaBusqueda,
+      estado: { $ne: "cancelado" }
     });
 
-    if (turnosDelDia >= 3) {
-      return res.status(400).json({
-        msg: "Alcanzaste el máximo de 3 turnos por día. Intentá mañana."
+    // LOG para que mires tu consola de Node y veas qué está pasando
+    console.log(`DNI: ${dniBusqueda} | Fecha: ${fechaBusqueda} | Encontrados: ${turnosExistentes.length}`);
+
+    if (turnosExistentes.length >= 3) {
+      return res.status(400).json({ 
+        msg: "Alcanzaste el máximo de 3 turnos por día. Intentá mañana." 
       });
     }
 
-    // 🔢 Número de turno
+    // Si pasó, seguimos...
     const ultimo = await Turno.findOne().sort({ numeroTurno: -1 });
     const numeroTurno = ultimo ? ultimo.numeroTurno + 1 : 1;
 
-    const turno = await Turno.create({
-      dni,
+    const nuevoTurno = new Turno({
+      dni: dniBusqueda,
       telefono,
       especialidad,
-      fecha,
+      fecha: fechaBusqueda,
       hora,
       numeroTurno
     });
 
-    return res.status(201).json(turno);
+    await nuevoTurno.save();
+    return res.status(201).json(nuevoTurno);
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 };
-
 
 
 export const horariosDisponibles = async (req, res) => {
