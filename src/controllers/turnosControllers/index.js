@@ -1,39 +1,37 @@
 import { Turno } from "../../models/turno.js";
 import { Especialista } from "../../models/especialista.js";
+import { obtenerSiguienteNumeroTurno } from "../../helpers/counterHelper.js";
 
 // Crear turno
 export const crearTurno = async (req, res) => {
   try {
-    const { dni, telefono, especialidad, fecha, hora } = req.body;
+    const { dni, telefono, especialista, fecha, hora } = req.body;
 
-    // Normalizamos para evitar errores de espacios o tipos de datos
+    if (!dni || !telefono || !especialista || !fecha || !hora) {
+      return res.status(400).json({ msg: "Faltan datos requeridos." });
+    }
+
     const dniBusqueda = String(dni).trim();
     const fechaBusqueda = String(fecha).trim();
 
-    // 🔒 LA CLAVE: Buscamos coincidencia exacta en la BD
-    const turnosExistentes = await Turno.find({
+    const turnosExistentes = await Turno.countDocuments({
       dni: dniBusqueda,
       fecha: fechaBusqueda,
       estado: { $ne: "cancelado" }
     });
 
-    // LOG para que mires tu consola de Node y veas qué está pasando
-    console.log(`DNI: ${dniBusqueda} | Fecha: ${fechaBusqueda} | Encontrados: ${turnosExistentes.length}`);
-
-    if (turnosExistentes.length >= 3) {
+    if (turnosExistentes >= 3) {
       return res.status(400).json({ 
-        msg: "Alcanzaste el máximo de 3 turnos por día. Intentá mañana." 
+        msg: "Alcanzaste el máximo de 3 turnos por día para este documento. Intentá mañana." 
       });
     }
 
-    // Si pasó, seguimos...
-    const ultimo = await Turno.findOne().sort({ numeroTurno: -1 });
-    const numeroTurno = ultimo ? ultimo.numeroTurno + 1 : 1;
+    const numeroTurno = await obtenerSiguienteNumeroTurno(fechaBusqueda);
 
     const nuevoTurno = new Turno({
       dni: dniBusqueda,
       telefono,
-      especialidad,
+      especialista,
       fecha: fechaBusqueda,
       hora,
       numeroTurno
@@ -43,32 +41,36 @@ export const crearTurno = async (req, res) => {
     return res.status(201).json(nuevoTurno);
 
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ 
+        msg: "El horario seleccionado acaba de ser reservado por otro paciente. Por favor, elegí otro horario." 
+      });
+    }
     return res.status(500).json({ error: err.message });
   }
 };
 
-
+// Horarios disponibles basados en el ID del especialista
 export const horariosDisponibles = async (req, res) => {
   try {
-    const { especialidad, fecha } = req.query;
+    const { especialista, fecha } = req.query;
 
-    if (!especialidad || !fecha)
+    if (!especialista || !fecha)
       return res.status(400).json({ error: "Faltan datos" });
 
-    // 🔍 BUSQUEDA ROBUSTA:
-    // $regex: crea una expresión regular con el nombre
-    // $options: "i" hace que ignore mayúsculas y minúsculas
-    const profesional = await Especialista.findOne({ 
-      especialidad: { $regex: new RegExp(`^${especialidad.trim()}$`, "i") } 
-    });
+    const profesional = await Especialista.findById(especialista);
 
     if (!profesional) {
-      return res.status(404).json({ error: "No hay especialistas para esta área" });
+      return res.status(404).json({ error: "El especialista no existe" });
     }
 
-    // El resto del código se mantiene igual...
     const base = profesional.horariosBase || [];
-    const turnosTomados = await Turno.find({ especialidad, fecha });
+    const turnosTomados = await Turno.find({ 
+      especialista, 
+      fecha, 
+      estado: "pendiente" 
+    });
+    
     const ocupados = turnosTomados.map(t => t.hora);
 
     const horarios = base.map(h => ({
@@ -76,28 +78,50 @@ export const horariosDisponibles = async (req, res) => {
       disponible: !ocupados.includes(h)
     }));
 
-    res.json({ horarios });
+    return res.json({ horarios });
   } catch (err) {
-    res.status(500).json({ error: "Error interno" });
+    return res.status(500).json({ error: "Error interno" });
   }
 };
 
+// Horarios ocupados basados en el ID del especialista
+export const horariosOcupados = async (req, res) => {
+  try {
+    const { especialista, fecha } = req.query;
+    
+    if (!especialista || !fecha)
+      return res.status(400).json({ error: "Faltan datos" });
 
-// Obtener todos
+    const turnosTomados = await Turno.find({ 
+      especialista, 
+      fecha, 
+      estado: "pendiente" 
+    });
+    
+    const horas = turnosTomados.map(t => t.hora);
+    return res.json({ horas });
+  } catch (err) {
+    return res.status(500).json({ error: "Error interno" });
+  }
+};
+
+// Obtener todos los turnos (Suma populate para ver los datos del Especialista)
 export const obtenerTurnos = async (req, res) => {
   try {
-    const turnos = await Turno.find().sort({ createdAt: -1 });
+    const turnos = await Turno.find()
+      .populate("especialista", "nombre apellido especialidad") // Trae datos limpios del médico
+      .sort({ createdAt: -1 });
     return res.json(turnos);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 };
 
-// Obtener uno por ID
+// Obtener un turno por ID
 export const obtenerTurno = async (req, res) => {
   try {
     const { id } = req.params;
-    const turno = await Turno.findById(id);
+    const turno = await Turno.findById(id).populate("especialista", "nombre apellido especialidad");
     if (!turno) return res.status(404).json({ msg: "No encontrado" });
     return res.json(turno);
   } catch (err) {
@@ -110,37 +134,28 @@ export const actualizarTurno = async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
+    
     const turno = await Turno.findByIdAndUpdate(id, data, { new: true });
     if (!turno) return res.status(404).json({ msg: "No encontrado" });
     return res.json(turno);
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ 
+        msg: "No se puede actualizar a este horario porque ya fue reservado por otro paciente." 
+      });
+    }
     return res.status(500).json({ error: err.message });
   }
 };
 
-// Eliminar turno
+// Eliminar turno (Físico)
 export const eliminarTurno = async (req, res) => {
   try {
     const { id } = req.params;
     const turno = await Turno.findByIdAndDelete(id);
     if (!turno) return res.status(404).json({ msg: "No encontrado" });
-    return res.json({ msg: "Turno eliminado" });
+    return res.json({ msg: "Turno eliminado físicamente" });
   } catch (err) {
     return res.status(500).json({ error: err.message });
-  }
-};
-
-// Horarios disponibles
-
-
-// Horarios ocupados
-export const horariosOcupados = async (req, res) => {
-  try {
-    const { especialidad, fecha } = req.query;
-    const turnosTomados = await Turno.find({ especialidad, fecha });
-    const horas = turnosTomados.map(t => t.hora);
-    res.json({ horas });
-  } catch (err) {
-    res.status(500).json({ error: "Error interno" });
   }
 };
