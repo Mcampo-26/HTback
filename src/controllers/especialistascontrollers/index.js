@@ -2,7 +2,16 @@ import { Especialista } from "../../models/especialista.js";
 
 export const getEspecialistas = async (req, res) => {
   try {
-    const lista = await Especialista.find().sort({ nombre: 1 });
+    // Usamos una agregación para normalizar la especialidad a MAYÚSCULAS en el vuelo
+    const lista = await Especialista.aggregate([
+      {
+        $addFields: {
+          especialidad: { $toUpper: { $trim: { input: "$especialidad" } } }
+        }
+      },
+      { $sort: { nombre: 1 } }
+    ]);
+
     res.json(lista);
   } catch (error) {
     res.status(500).json({ mensaje: error.message });
