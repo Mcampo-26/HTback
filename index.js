@@ -4,14 +4,15 @@ import morgan from "morgan";
 import http from "http";
 import { Server } from "socket.io";
 import dotenv from "dotenv";
-
+import cookieParser from "cookie-parser";
 import { turnosRouter } from "./src/routes/turnos/index.js";
 import { noticiasRouter } from "./src/routes/noticias/index.js";
 import { atencionesRouter } from "./src/routes/atencion/index.js";
 import { especialistasRouter } from "./src/routes/especialistas/index.js";
 import serviciosRouter from "./src/routes/servicio/index.js";
 import { dbConnect } from "./src/database/config.js";
-
+import mongoSanitize from "express-mongo-sanitize";
+import { authRouter } from "./src/routes/Auth/index.js";
 dotenv.config();
 
 const app = express();
@@ -47,9 +48,22 @@ app.locals.io = io;
 // ░░░ MIDDLEWARES BASE ░░░
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(morgan("dev"));
 
+
 // 🔥 NUEVO: MIDDLEWARE DE CONEXIÓN A DB (Crucial para Vercel)
+
+app.use((req, body, next) => {
+  if (req.body) {
+    mongoSanitize.sanitize(req.body, {
+      allowDots: true,
+      replaceWith: '_'
+    });
+  }
+  next();
+});
+
 app.use(async (req, res, next) => {
   try {
     await dbConnect();
@@ -84,6 +98,7 @@ app.use("/api/noticias", noticiasRouter);
 app.use("/api/atenciones", atencionesRouter);
 app.use("/api/especialistas", especialistasRouter);
 app.use("/api/servicios", serviciosRouter);
+app.use("/api/auth", authRouter);
 // ░░░ INICIAR SERVIDOR ░░░
 const PORT = process.env.PORT || 8080;
 

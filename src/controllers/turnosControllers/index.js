@@ -2,66 +2,109 @@ import { Turno } from "../../models/turno.js";
 import { Especialista } from "../../models/especialista.js";
 import { obtenerSiguienteNumeroTurno } from "../../helpers/counterHelper.js";
 
-// Crear turno
+// =========================================================================
+// 1. CREAR TURNO (CON CANDADO TOTAL DE 3 TURNOS POR DNI)
+// =========================================================================
 export const crearTurno = async (req, res) => {
   try {
     const { dni, telefono, especialista, fecha, hora } = req.body;
 
-    if (!dni || !telefono || !especialista || !fecha || !hora) {
-      return res.status(400).json({ msg: "Faltan datos requeridos." });
-    }
+    const dniLimpio = String(dni).trim();
+    const fechaLimpia = String(fecha).trim();
 
-    const dniBusqueda = String(dni).trim();
-    const fechaBusqueda = String(fecha).trim();
+    // 🧪 LOG 1: Ver qué datos exactos entran desde el frontend
+    console.log(`\n[CAZA-ERROR] Entrando DNI: "${dniLimpio}" (Tipo: ${typeof dniLimpio}) | Fecha: "${fechaLimpia}" (Tipo: ${typeof fechaLimpia})`);
 
+    // Hacemos el conteo directo
     const turnosExistentes = await Turno.countDocuments({
-      dni: dniBusqueda,
-      fecha: fechaBusqueda,
-      estado: { $ne: "cancelado" }
+      dni: dniLimpio,
+      fecha: fechaLimpia,
+      estado: { $not: { $eq: "cancelado" } }
     });
 
+    // 🧪 LOG 2: Ver cuánto da la cuenta de Mongo antes de tirar el IF
+    console.log(`[CAZA-ERROR] Cantidad de turnos encontrados en BD para hoy: ${turnosExistentes}`);
+
     if (turnosExistentes >= 3) {
+      console.log(`[CAZA-ERROR] 🛑 BLOQUEADO: El DNI ${dniLimpio} ya tiene ${turnosExistentes} turnos.`);
       return res.status(400).json({ 
-        msg: "Alcanzaste el máximo de 3 turnos por día para este documento. Intentá mañana." 
+        success: false,
+        msg: "Alcanzaste el máximo de 3 turnos permitidos para este día. Intentá con otra fecha." 
       });
     }
 
-    const numeroTurno = await obtenerSiguienteNumeroTurno(fechaBusqueda);
+    console.log(`[CAZA-ERROR] ✅ PERMITIDO: Pasando a generar número de ticket...`);
+
+    const numeroTurno = await obtenerSiguienteNumeroTurno();
 
     const nuevoTurno = new Turno({
-      dni: dniBusqueda,
-      telefono,
+      dni: dniLimpio,
+      telefono: String(telefono).trim(),
       especialista,
-      fecha: fechaBusqueda,
+      fecha: fechaLimpia,
       hora,
-      numeroTurno
+      numeroTurno,
+      estado: "pendiente"
     });
 
     await nuevoTurno.save();
-    return res.status(201).json(nuevoTurno);
+    
+    return res.status(201).json({
+      success: true,
+      data: nuevoTurno
+    });
 
   } catch (err) {
+    console.error("[ERROR CRÍTICO TURNOS]:", err.message);
     if (err.code === 11000) {
       return res.status(409).json({ 
+        success: false,
         msg: "El horario seleccionado acaba de ser reservado por otro paciente. Por favor, elegí otro horario." 
       });
     }
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 };
 
-// Horarios disponibles basados en el ID del especialista
+// =========================================================================
+// 2. ACTUALIZAR TURNO (CON RESPUESTA ESTRUCTURADA)
+// =========================================================================
+export const actualizarTurno = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataFiltrada = req.body; 
+    
+    const turnoModificado = await Turno.findByIdAndUpdate(id, dataFiltrada, { new: true });
+    if (!turnoModificado) return res.status(404).json({ success: false, msg: "No encontrado" });
+    
+    return res.json({
+      success: true,
+      data: turnoModificado
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ 
+        success: false,
+        msg: "No se puede actualizar a este horario porque ya fue reservado por otro paciente." 
+      });
+    }
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// =========================================================================
+// 3. HORARIOS DISPONIBLES
+// =========================================================================
 export const horariosDisponibles = async (req, res) => {
   try {
     const { especialista, fecha } = req.query;
 
     if (!especialista || !fecha)
-      return res.status(400).json({ error: "Faltan datos" });
+      return res.status(400).json({ success: false, error: "Faltan datos" });
 
     const profesional = await Especialista.findById(especialista);
-
     if (!profesional) {
-      return res.status(404).json({ error: "El especialista no existe" });
+      return res.status(404).json({ success: false, error: "El especialista no existe" });
     }
 
     const base = profesional.horariosBase || [];
@@ -78,19 +121,21 @@ export const horariosDisponibles = async (req, res) => {
       disponible: !ocupados.includes(h)
     }));
 
-    return res.json({ horarios });
+    return res.json({ success: true, horarios });
   } catch (err) {
-    return res.status(500).json({ error: "Error interno" });
+    return res.status(500).json({ success: false, error: "Error interno" });
   }
 };
 
-// Horarios ocupados basados en el ID del especialista
+// =========================================================================
+// 4. HORARIOS OCUPADOS
+// =========================================================================
 export const horariosOcupados = async (req, res) => {
   try {
     const { especialista, fecha } = req.query;
     
     if (!especialista || !fecha)
-      return res.status(400).json({ error: "Faltan datos" });
+      return res.status(400).json({ success: false, error: "Faltan datos" });
 
     const turnosTomados = await Turno.find({ 
       especialista, 
@@ -99,63 +144,50 @@ export const horariosOcupados = async (req, res) => {
     });
     
     const horas = turnosTomados.map(t => t.hora);
-    return res.json({ horas });
+    return res.json({ success: true, horas });
   } catch (err) {
-    return res.status(500).json({ error: "Error interno" });
+    return res.status(500).json({ success: false, error: "Error interno" });
   }
 };
 
-// Obtener todos los turnos (Suma populate para ver los datos del Especialista)
+// =========================================================================
+// 5. OBTENER TODOS LOS TURNOS
+// =========================================================================
 export const obtenerTurnos = async (req, res) => {
   try {
     const turnos = await Turno.find()
-      .populate("especialista", "nombre apellido especialidad") // Trae datos limpios del médico
+      .populate("especialista", "nombre apellido especialidad") 
       .sort({ createdAt: -1 });
-    return res.json(turnos);
+    return res.json({ success: true, data: turnos });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 };
 
-// Obtener un turno por ID
+// =========================================================================
+// 6. OBTENER UN TURNO POR ID
+// =========================================================================
 export const obtenerTurno = async (req, res) => {
   try {
     const { id } = req.params;
-    const turno = await Turno.findById(id).populate("especialista", "nombre apellido especialidad");
-    if (!turno) return res.status(404).json({ msg: "No encontrado" });
-    return res.json(turno);
+    const result = await Turno.findById(id).populate("especialista", "nombre apellido especialidad");
+    if (!result) return res.status(404).json({ success: false, msg: "No encontrado" });
+    return res.json({ success: true, data: result });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 };
 
-// Actualizar turno
-export const actualizarTurno = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = req.body;
-    
-    const turno = await Turno.findByIdAndUpdate(id, data, { new: true });
-    if (!turno) return res.status(404).json({ msg: "No encontrado" });
-    return res.json(turno);
-  } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({ 
-        msg: "No se puede actualizar a este horario porque ya fue reservado por otro paciente." 
-      });
-    }
-    return res.status(500).json({ error: err.message });
-  }
-};
-
-// Eliminar turno (Físico)
+// =========================================================================
+// 7. ELIMINAR TURNO (FÍSICO)
+// =========================================================================
 export const eliminarTurno = async (req, res) => {
   try {
     const { id } = req.params;
-    const turno = await Turno.findByIdAndDelete(id);
-    if (!turno) return res.status(404).json({ msg: "No encontrado" });
-    return res.json({ msg: "Turno eliminado físicamente" });
+    const result = await Turno.findByIdAndDelete(id);
+    if (!result) return res.status(404).json({ success: false, msg: "No encontrado" });
+    return res.json({ success: true, msg: "Turno eliminado físicamente" });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 };

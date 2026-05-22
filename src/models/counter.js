@@ -1,3 +1,4 @@
+// src/models/counter.js
 import mongoose from "mongoose";
 
 const CounterSchema = new mongoose.Schema(
@@ -5,7 +6,7 @@ const CounterSchema = new mongoose.Schema(
     idConteo: {
       type: String,
       required: true,
-      unique: true, // Crucial para garantizar que no existan duplicados
+      unique: true, // 👈 Bloqueo total a nivel Driver de Mongo
     },
     seq: {
       type: Number,
@@ -16,3 +17,8 @@ const CounterSchema = new mongoose.Schema(
 );
 
 export const Counter = mongoose.model("Counter", CounterSchema);
+
+// 🔥 GOLPE DE EFECTO: Asegura que el índice 'unique' se registre sí o sí en Atlas
+Counter.syncIndexes().catch((err) => 
+  console.error("[MONGO INDEX ERROR]:", err.message)
+);
