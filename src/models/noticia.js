@@ -20,19 +20,29 @@ const NoticiaSchema = new mongoose.Schema(
     },
     posicion: {
       type: String,
-      enum: ["carrusel", "cards", "banner","participacion", "salud", "banner1", "banner2"],
+      enum: [
+        "carrusel", 
+        "cards", 
+        "banner",
+        "participacion", 
+        "salud", 
+        "banner1", 
+        "banner2",
+        // 🏢 Posiciones institucionales estrictas para ATSA Tucumán
+        "atsa_resena",
+        "atsa_mision",
+        "atsa_comision"
+      ],
       required: true,
     },
     activo: {
       type: Boolean,
       default: true,
     },
-
     link: {
       type: String,
       default: null,
     },
-    
   },
   { timestamps: true }
 );

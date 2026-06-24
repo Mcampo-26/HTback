@@ -1,7 +1,6 @@
 import { Noticia } from "../../models/noticia.js";
 
-
-
+// 🚀 CREAR CONTENIDO
 export const crearNoticia = async (req, res) => {
   try {
     const { titulo, descripcion, imagenUrl, posicion, activo, link } = req.body;
@@ -32,81 +31,97 @@ export const crearNoticia = async (req, res) => {
   }
 };
 
-
-
-  export const obtenerNoticias = async (req, res) => {
-    try {
-      const noticias = await Noticia.find().sort({ createdAt: -1 });
-      return res.status(200).json(noticias);
-    } catch (error) {
-      return res
-        .status(500)
-        .json({ mensaje: "Error al obtener noticias", error: error.message });
+// 🔍 OBTENER TODOS LOS CONTENIDOS (CON FILTROS DINÁMICOS)
+export const obtenerNoticias = async (req, res) => {
+  try {
+    // Capturamos filtros opcionales desde la URL (ej: ?posicion=atsa_hoteles&activo=true)
+    const { posicion, activo } = req.query;
+    
+    // Construimos el objeto de búsqueda dinámicamente
+    const filtros = {};
+    
+    if (posicion) {
+      filtros.posicion = posicion;
     }
-  };
-
-  export const obtenerNoticia = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const noticia = await Noticia.findById(id);
-  
-      if (!noticia) {
-        return res.status(404).json({ mensaje: "Noticia no encontrada" });
-      }
-  
-      return res.status(200).json(noticia);
-    } catch (error) {
-      return res
-        .status(500)
-        .json({ mensaje: "Error al obtener noticia", error: error.message });
+    
+    if (activo !== undefined) {
+      // Convertimos el string 'true'/'false' de la URL a un Booleano real
+      filtros.activo = activo === "true";
     }
-  };
 
-  export const actualizarNoticia = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { titulo, descripcion, imagenUrl, posicion, activo, link } = req.body;
-  
-      const noticiaActualizada = await Noticia.findByIdAndUpdate(
-        id,
-        {
-          ...(titulo !== undefined && { titulo }),
-          ...(descripcion !== undefined && { descripcion }),
-          ...(imagenUrl !== undefined && { imagenUrl }),
-          ...(posicion !== undefined && { posicion }),
-          ...(activo !== undefined && { activo }),
-          ...(link !== undefined && { link }), // ✅ IMPORTANTE
-        },
-        { new: true }
-      );
-  
-      if (!noticiaActualizada) {
-        return res.status(404).json({ mensaje: "Noticia no encontrada" });
-      }
-  
-      return res.status(200).json(noticiaActualizada);
-    } catch (error) {
-      return res.status(500).json({
-        mensaje: "Error al actualizar noticia",
-        error: error.message,
-      });
+    // Buscamos aplicando los filtros si existen, u obtenemos todo si no se envían params
+    const noticias = await Noticia.find(filtros).sort({ createdAt: -1 });
+    
+    return res.status(200).json(noticias);
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al obtener noticias", error: error.message });
+  }
+};
+
+// 📌 OBTENER UN SOLO CONTENIDO POR ID
+export const obtenerNoticia = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const noticia = await Noticia.findById(id);
+
+    if (!noticia) {
+      return res.status(404).json({ mensaje: "Noticia no encontrada" });
     }
-  };
 
-  export const eliminarNoticia = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const noticiaEliminada = await Noticia.findByIdAndDelete(id);
-  
-      if (!noticiaEliminada) {
-        return res.status(404).json({ mensaje: "Noticia no encontrada" });
-      }
-  
-      return res.status(200).json({ mensaje: "Noticia eliminada correctamente" });
-    } catch (error) {
-      return res
-        .status(500)
-        .json({ mensaje: "Error al eliminar noticia", error: error.message });
+    return res.status(200).json(noticia);
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al obtener noticia", error: error.message });
+  }
+};
+
+// ✏️ ACTUALIZAR CONTENIDO (Limpieza de Payload Optimizada)
+export const actualizarNoticia = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    // Eliminamos del objeto cualquier campo que venga explícitamente como undefined
+    Object.keys(updateData).forEach(
+      (key) => updateData[key] === undefined && delete updateData[key]
+    );
+
+    const noticiaActualizada = await Noticia.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true } // runValidators asegura que respete el ENUM del modelo
+    );
+
+    if (!noticiaActualizada) {
+      return res.status(404).json({ mensaje: "Noticia no encontrada" });
     }
-  };
 
+    return res.status(200).json(noticiaActualizada);
+  } catch (error) {
+    return res.status(500).json({
+      mensaje: "Error al actualizar noticia",
+      error: error.message,
+    });
+  }
+};
+
+// 🗑️ ELIMINAR CONTENIDO
+export const eliminarNoticia = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const noticiaEliminada = await Noticia.findByIdAndDelete(id);
+
+    if (!noticiaEliminada) {
+      return res.status(404).json({ mensaje: "Noticia no encontrada" });
+    }
+
+    return res.status(200).json({ mensaje: "Noticia eliminada correctamente" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ mensaje: "Error al eliminar noticia", error: error.message });
+  }
+};

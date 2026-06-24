@@ -1,22 +1,21 @@
+import "dotenv/config"; // 🔥 ¡NUEVO! Carga las variables de entorno ANTES que cualquier otra importación
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import http from "http";
 import { Server } from "socket.io";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
-import { turnosRouter } from "./src/routes/turnos/index.js";
 import { noticiasRouter } from "./src/routes/noticias/index.js";
-import { atencionesRouter } from "./src/routes/atencion/index.js";
-import { especialistasRouter } from "./src/routes/especialistas/index.js";
-import serviciosRouter from "./src/routes/servicio/index.js";
+import sedesRouter from "./src/routes/sedes/index.js";
 import { dbConnect } from "./src/database/config.js";
 import mongoSanitize from "express-mongo-sanitize";
 import { authRouter } from "./src/routes/Auth/index.js";
-dotenv.config();
+import autoridadRouter from "./src/routes/autoridad/index.js";
 
 const app = express();
 const server = http.createServer(app);
+
+
 
 // ░░░ CONFIGURACIÓN DE CORS ░░░
 const allowedOrigins = [
@@ -93,12 +92,10 @@ app.use((req, res, next) => {
 });
 
 // ░░░ RUTAS ░░░
-app.use("/api/turnos", turnosRouter);
 app.use("/api/noticias", noticiasRouter);
-app.use("/api/atenciones", atencionesRouter);
-app.use("/api/especialistas", especialistasRouter);
-app.use("/api/servicios", serviciosRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/sedes", sedesRouter);
+app.use("/api/autoridades", autoridadRouter);
 // ░░░ INICIAR SERVIDOR ░░░
 const PORT = process.env.PORT || 8080;
 
