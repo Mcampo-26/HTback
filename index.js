@@ -20,7 +20,7 @@ const server = http.createServer(app);
 // ░░░ CONFIGURACIÓN DE CORS ░░░
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://hospitaldetrancas.netlify.app",
+  "https://atsatuc.netlify.app",
 ];
 
 app.use(
