@@ -8,6 +8,12 @@ const SedeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // 🏨 NUEVO CAMPO: Para separar "Sedes" de "Hoteles de la Sanidad"
+    tipo: {
+      type: String,
+      enum: ["sede", "hotel"],
+      required: true, // Lo hacemos obligatorio para que no haya registros huerfanos
+    },
     direccion: {
       type: String,
       required: true,
