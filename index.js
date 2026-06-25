@@ -15,8 +15,6 @@ import autoridadRouter from "./src/routes/autoridad/index.js";
 const app = express();
 const server = http.createServer(app);
 
-
-
 // ░░░ CONFIGURACIÓN DE CORS ░░░
 const allowedOrigins = [
   "http://localhost:5173",
@@ -50,9 +48,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan("dev"));
 
-
 // 🔥 NUEVO: MIDDLEWARE DE CONEXIÓN A DB (Crucial para Vercel)
-
 app.use((req, body, next) => {
   if (req.body) {
     mongoSanitize.sanitize(req.body, {
@@ -91,11 +87,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// ░░░ RUTA RAÍZ (Evita el 404 del ping de Netlify/Heroku) ░░░
+app.get("/", (req, res) => {
+  return res.status(200).json({ 
+    mensaje: "Servidor de ATSA Tucumán activo y corriendo con éxito 🚀" 
+  });
+});
+
 // ░░░ RUTAS ░░░
 app.use("/api/noticias", noticiasRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/sedes", sedesRouter);
 app.use("/api/autoridades", autoridadRouter);
+
 // ░░░ INICIAR SERVIDOR ░░░
 const PORT = process.env.PORT || 8080;
 
