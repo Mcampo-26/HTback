@@ -1,34 +1,47 @@
+// src/database/config.js
 import mongoose from 'mongoose';
 
-// Guardamos la promesa de la conexión para evitar ejecuciones simultáneas
-let cachedConnection = null;
+// Cacheamos la promesa para evitar ejecuciones simultáneas en ráfagas de peticiones
+let cachedPromise = null;
 
 export const dbConnect = async () => {
-  // Si ya existe una conexión o una conexión en proceso, devolvemos esa misma promesa
-  if (cachedConnection) {
-    return cachedConnection;
+  // 1. Si Mongoose ya está conectado de forma nativa (readyState 1 = conectado, 2 = conectando)
+  if (mongoose.connection.readyState >= 1) {
+    return mongoose.connection;
+  }
+
+  // 2. Si hay una promesa en proceso, la reutilizamos para no duplicar hilos
+  if (cachedPromise) {
+    return cachedPromise;
   }
 
   try {
-    const uri = process.env.MONGODB_URI;
-    if (!uri) throw new Error('Falta MONGODB_URI en las variables de entorno');
+    // Usamos MONGODB_URI (o MONGO_URI, el que tengas configurado en tus variables de Heroku)
+    const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    if (!uri) throw new Error('Falta la variable de conexión a MongoDB en el entorno');
 
     console.log('=> Iniciando conexión a MongoDB...');
 
-    // Guardamos la promesa en la variable estática
-    cachedConnection = mongoose.connect(uri, {
+    // 3. Opciones robustas del código que te andaba perfecto (Pool estable)
+    const opts = {
       bufferCommands: true,
-      serverSelectionTimeoutMS: 5000,
-    });
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    };
 
-    await cachedConnection;
-    console.log('=> Nueva conexión exitosa a MongoDB');
+    // Guardamos la promesa de conexión en la caché
+    cachedPromise = mongoose.connect(uri, opts);
+
+    const conn = await cachedPromise;
+    console.log(`🚀 MongoDB: Conexión caliente y lista en ${conn.connection.host}`);
     
-    return cachedConnection;
+    return conn;
   } catch (error) {
-    // Si falla, limpiamos la caché para permitir re-intentos en la próxima petición
-    cachedConnection = null;
-    console.error('=> Error conectando a MongoDB:', error.message);
+    // Si falla, limpiamos la promesa cacheada para permitir que la siguiente petición reintente
+    cachedPromise = null;
+    console.error('❌ Error en la conexión a MongoDB:', error.message);
     throw error;
   }
 };
