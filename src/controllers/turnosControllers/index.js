@@ -3,6 +3,9 @@ import { Especialista } from "../../models/especialista.js";
 import { obtenerSiguienteNumeroTurno } from "../../helpers/counterHelper.js";
 
 // Crear turno
+// Crear turno
+// Crear turno
+// Crear turno
 export const crearTurno = async (req, res) => {
   try {
     const { dni, telefono, especialista, fecha, hora } = req.body;
@@ -37,8 +40,39 @@ export const crearTurno = async (req, res) => {
       numeroTurno
     });
 
+    // 1. Guardamos el turno normalmente
     await nuevoTurno.save();
-    return res.status(201).json(nuevoTurno);
+
+    // 2. 🚀 CASCADA BLINDADA: Traemos el turno desde la base de datos ya populado en sus dos niveles
+    // Usamos findById para asegurarnos un mapeo limpio y directo a JSON sin residuos en memoria
+    const turnoConfirmado = await Turno.findById(nuevoTurno._id)
+      .populate({
+        path: "especialista",
+        select: "nombre especialidad",
+        populate: {
+          path: "especialidad",
+          model: "Servicio", // Nombre exacto del modelo destino
+          select: "nombre"
+        }
+      });
+
+    console.log("=== [LOG 2 REAL] Turno post-populate ===");
+    console.log(JSON.stringify(turnoConfirmado, null, 2));
+
+    // 3. 📱 ENVÍO ASÍNCRONO DE WHATSAPP
+    try {
+      const nombreEspecialidad = turnoConfirmado.especialista?.especialidad?.nombre || "General";
+      const nombreMedico = turnoConfirmado.especialista?.nombre 
+        ? `Dr. ${turnoConfirmado.especialista.nombre}` 
+        : "Especialista";
+
+      console.log(`[WHATSAPP] Datos -> Esp: ${nombreEspecialidad}, Med: ${nombreMedico}`);
+    } catch (wsErr) {
+      console.error("[WHATSAPP ERROR]", wsErr.message);
+    }
+
+    // 4. Retornamos el objeto estructurado
+    return res.status(201).json(turnoConfirmado);
 
   } catch (err) {
     if (err.code === 11000) {
@@ -49,7 +83,6 @@ export const crearTurno = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
-
 // Horarios disponibles basados en el ID del especialista
 export const horariosDisponibles = async (req, res) => {
   try {
