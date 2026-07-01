@@ -11,6 +11,7 @@ import { dbConnect } from "./src/database/config.js";
 import mongoSanitize from "express-mongo-sanitize";
 import { authRouter } from "./src/routes/Auth/index.js";
 import autoridadRouter from "./src/routes/autoridad/index.js";
+import alumnosRouter from "./src/routes/alumnos/index.js"
 
 const app = express();
 const server = http.createServer(app);
@@ -99,6 +100,8 @@ app.use("/api/noticias", noticiasRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/sedes", sedesRouter);
 app.use("/api/autoridades", autoridadRouter);
+app.use("/api/alumnos", alumnosRouter);
+
 
 // ░░░ INICIAR SERVIDOR ░░░
 const PORT = process.env.PORT || 8080;
